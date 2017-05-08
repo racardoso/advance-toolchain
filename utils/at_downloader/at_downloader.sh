@@ -327,9 +327,14 @@ ${distro}."
 fi
 
 # Get avaliable architectures for the distro.
-#TODO(rcardoso): not working for debian/ubuntu due a different folder structure
-at_archs=($( cat ${tmp_file} | grep -E '.*(rpm$)|.*(deb$)' | \
-awk -F'[.-]' '{print $(NF-1)}' | sort | uniq ))
+#TODO(rcardoso): do we really need another wget?
+if [[ ${debian} == yes ]]; then
+	at_archs=($( wget -q -O - ${url} | grep -oE '>binary-[/A-Za-z0-9-]+<' | \
+	awk -F'[-/]' '{print $2}' | sort ))
+else
+	at_archs=($( cat ${tmp_file} | grep -E '.*(rpm$)|.*(deb$)' | \
+	awk -F'[.-]' '{print $(NF-1)}' | sort | uniq ))
+fi
 
 #TODO(rcardoso): not the best way. The right way is using a uname -m or arch
 # command to get the machine and search on list if architecture is avaliable. 
