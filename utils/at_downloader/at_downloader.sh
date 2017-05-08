@@ -304,23 +304,45 @@ output=${output:-${pwd}}
 url="${at_url}/${vendor}/${distro}/at${at_major}/"
 
 # Get the list of files in the distro/at_major directory.
+wget -q -O - ${url} | grep -oE '>[_A-Za-z0-9.-]+<' | cut -c2- | rev | \
+cut -c2- | rev > ${tmp_file}
+
+if [[ ! $( cat ${tmp_file} ) ]]; then
+	#check if ${tmp_file} has data
+	echo "Error: This AT version doesn't have support to this \
+distro."
+	clean_exit 1
+fi
+ 
 # Filter the AT's minor versions from release notes file names.
-wget -q -O - ${url} | awk -F'[.-]' '{print $9}' > ${tmp_file}
 # Get the latest minor version from AT.
-at_minor=$( cat ${tmp_file} | grep -e ^[0-9] | tail -1 )
+at_minor=$( cat ${tmp_file} | grep -e .html | awk -F'[.-]' '{print $6}' | \
+tail -1)
+
 # Verify if there is native packages for that distro.
 if [[ -z ${at_minor} ]]; then
-	# Check if ${tmp_file} has data.
-	if [[ ! $( cat ${tmp_file} ) ]]; then
-		echo "Error: This AT version doesn't have support to this \
-distro."
-		clean_exit 1
-	else
-		echo "AT ${at_major} has only compat and/or cross packages for \
+	echo "AT ${at_major} has only compat and/or cross packages for \
 ${distro}."
-		clean_exit 1
-	fi
+	clean_exit 1
 fi
+
+# Get avaliable architectures for the distro.
+#TODO(rcardoso): not working for debian/ubuntu due a different folder structure
+at_archs=($( cat ${tmp_file} | grep -E '.*(rpm$)|.*(deb$)' | \
+awk -F'[.-]' '{print $(NF-1)}' | sort | uniq ))
+
+#TODO(rcardoso): not the best way. The right way is using a uname -m or arch
+# command to get the machine and search on list if architecture is avaliable. 
+# if is then at_arch_latest = uname -m 
+at_arch_latest=${at_archs[0]}
+
+echo "AT Architecture:"
+print_directories at_archs
+read -e -p "Enter AT architecture (${at_arch_latest})?: " at_arch
+at_arch=$( handle_option at_archs ${at_arch} ${at_arch_latest} )
+
+#TODO(rcardoso): just for debug purpose. Remove this. 
+echo ${at_arch}
 
 # Debian systems have a different directory structure.
 if [[ ${debian} == "yes" ]]; then
